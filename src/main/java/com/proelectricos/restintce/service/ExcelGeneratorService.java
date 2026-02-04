@@ -19,7 +19,6 @@ public class ExcelGeneratorService {
     private String templatePath;
 
     public void createExcelFromTemplate(Map<String, Object> dealData, String targetPath) throws Exception {
-        // 1. Cargar la plantilla desde src/main/resources
         Resource resource = new ClassPathResource(templatePath);
 
         try (InputStream is = resource.getInputStream();
@@ -27,18 +26,31 @@ public class ExcelGeneratorService {
 
             Sheet sheet = workbook.getSheetAt(0);
 
-            // 2. Mapeo de datos según requerimiento
-            // TITLE (Nombre del negocio) -> Celda C8
-            updateCell(sheet, "C8", Objects.toString(dealData.get("TITLE"), "Sin Nombre"));
+            // --- MAPEO ORIGINAL ---
+            updateCell(sheet, "C10", Objects.toString(dealData.get("TITLE"), "Sin Nombre"));
+            //updateCellNumeric(sheet, "B3", Objects.toString(dealData.get("OPPORTUNITY"), "0"));
+            //updateCell(sheet, "A10", Objects.toString(dealData.get("COMMENTS"), "Sin observaciones"));
+            updateCell(sheet, "F5", Objects.toString("TAB-"+dealData.get("ID")+"-26", "Sin observaciones"));
+            // --- NUEVOS CAMPOS (AJUSTE PARA PRUEBAS) ---
 
-            // OPPORTUNITY (Monto) -> Celda B3
-            // Nota: Se intenta convertir a numérico para que Excel lo reconozca como dinero
-            updateCellNumeric(sheet, "B3", Objects.toString(dealData.get("OPPORTUNITY"), "0"));
+            // Nombre de la Compañía -> Celda C8
+            String companyName = dealData.containsKey("COMPANY_NAME_FETCHED")
+                    ? dealData.get("COMPANY_NAME_FETCHED").toString()
+                    : "Sin Compañía";
+            updateCell(sheet, "C8", companyName);
 
-            // COMMENTS (Observaciones) -> Celda A10
-            updateCell(sheet, "A10", Objects.toString(dealData.get("COMMENTS"), "Sin observaciones"));
+            // Nombre del Contacto -> Celda C12
+            String contactName = dealData.containsKey("CONTACT_NAME_FETCHED")
+                    ? dealData.get("CONTACT_NAME_FETCHED").toString()
+                    : "Sin Contacto";
+            updateCell(sheet, "C12", contactName);
 
-            // 3. Guardar el nuevo archivo en la ruta de exportación
+            // Nombre del Contacto -> Celda C28
+            String userName = dealData.containsKey("USER_NAME_FETCHED")
+                    ? dealData.get("USER_NAME_FETCHED").toString()
+                    : "Sin Contacto";
+            updateCell(sheet, "C28", contactName);
+
             try (FileOutputStream os = new FileOutputStream(targetPath)) {
                 workbook.write(os);
             }
@@ -55,7 +67,6 @@ public class ExcelGeneratorService {
         cell.setCellValue(value);
     }
 
-    // Método adicional para manejar montos como números y no como texto
     private void updateCellNumeric(Sheet sheet, String cellReference, String value) {
         CellReference ref = new CellReference(cellReference);
         Row row = sheet.getRow(ref.getRow());
