@@ -26,30 +26,42 @@ public class ExcelGeneratorService {
 
             Sheet sheet = workbook.getSheetAt(0);
 
-            // --- MAPEO ORIGINAL ---
+            // --- DATOS DEL NEGOCIO ---
             updateCell(sheet, "C10", Objects.toString(dealData.get("TITLE"), "Sin Nombre"));
             //updateCellNumeric(sheet, "B3", Objects.toString(dealData.get("OPPORTUNITY"), "0"));
             //updateCell(sheet, "A10", Objects.toString(dealData.get("COMMENTS"), "Sin observaciones"));
-            updateCell(sheet, "F5", Objects.toString("TAB-"+dealData.get("ID")+"-26", "Sin observaciones"));
-            // --- NUEVOS CAMPOS (AJUSTE PARA PRUEBAS) ---
+            updateCell(sheet, "C10", Objects.toString("TAB-"+dealData.get("ID")+"-26", "Sin Nombre"));
 
-            // Nombre de la Compañía -> Celda C8
+            // --- DATOS DEL CLIENTE (Compañía / Contacto) ---
             String companyName = dealData.containsKey("COMPANY_NAME_FETCHED")
                     ? dealData.get("COMPANY_NAME_FETCHED").toString()
                     : "Sin Compañía";
             updateCell(sheet, "C8", companyName);
 
-            // Nombre del Contacto -> Celda C12
             String contactName = dealData.containsKey("CONTACT_NAME_FETCHED")
                     ? dealData.get("CONTACT_NAME_FETCHED").toString()
                     : "Sin Contacto";
             updateCell(sheet, "C12", contactName);
 
-            // Nombre del Contacto -> Celda C28
-            String userName = dealData.containsKey("USER_NAME_FETCHED")
-                    ? dealData.get("USER_NAME_FETCHED").toString()
-                    : "Sin Contacto";
-            updateCell(sheet, "C28", contactName);
+            // --- NUEVOS CAMPOS: DATOS DEL RESPONSABLE (VENDEDOR) ---
+
+            // Nombre del Asesor
+            String responsibleName = dealData.containsKey("RESPONSIBLE_NAME")
+                    ? dealData.get("RESPONSIBLE_NAME").toString()
+                    : "Sin Asignar";
+            updateCell(sheet, "C28", responsibleName);
+
+            // Correo del Asesor
+            String responsibleEmail = dealData.containsKey("RESPONSIBLE_EMAIL")
+                    ? dealData.get("RESPONSIBLE_EMAIL").toString()
+                    : "";
+            updateCell(sheet, "C30", responsibleEmail);
+
+            // Teléfono del Asesor
+            String responsiblePhone = dealData.containsKey("RESPONSIBLE_PHONE")
+                    ? dealData.get("RESPONSIBLE_PHONE").toString()
+                    : "";
+            updateCell(sheet, "C32", responsiblePhone);
 
             try (FileOutputStream os = new FileOutputStream(targetPath)) {
                 workbook.write(os);
