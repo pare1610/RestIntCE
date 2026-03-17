@@ -27,6 +27,8 @@ public class BitrixController {
     @Value("${app.excel.export-path}")
     private String exportPath;
 
+    private static final String DRIVE_ROOT_FOLDER_ID = "1uEZu6TnfzYbgJqDMeXeor_zu7QeZfg9w";
+
     // Cambiamos a APPLICATION_JSON_VALUE porque así está en tu captura de Bitrix
     @PostMapping(value = "/generate", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> process(@RequestBody Map<String, Object> payload) {
@@ -48,9 +50,19 @@ public class BitrixController {
 
             // 3. Generar el archivo inyectando los datos en la plantilla
             excelService.createExcelFromTemplate(dealData, fullPath);
-
             log.info(">>>> Archivo generado exitosamente en: {}", fullPath);
-            return ResponseEntity.ok("Archivo generado con éxito: " + fileName);
+
+            // 4. Crear carpeta en Drive: "TAB-{dealId}-26 {dealTitle}"
+            String dealTitle = dealData.getOrDefault("TITLE", "Sin Nombre").toString();
+            String folderName = "TAB-" + dealId + "-26 " + dealTitle;
+            String folderId = excelService.createDriveFolder(folderName, DRIVE_ROOT_FOLDER_ID);
+            log.info(">>>> Carpeta creada en Drive: '{}' (ID: {})", folderName, folderId);
+
+            // 5. Subir el archivo a la carpeta recién creada
+            String webViewLink = excelService.uploadFileToGoogleDrive(fullPath, fileName, folderId);
+            log.info(">>>> Archivo subido a Drive: {}", webViewLink);
+
+            return ResponseEntity.ok("Archivo generado y subido con éxito: " + webViewLink);
 
         } catch (Exception e) {
             log.error(">>>> Error en el flujo de generación: ", e);

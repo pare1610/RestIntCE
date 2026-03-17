@@ -1,14 +1,19 @@
 package com.proelectricos.restintce.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.google.api.client.http.FileContent;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.File;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
@@ -17,6 +22,13 @@ public class ExcelGeneratorService {
 
     @Value("${app.excel.template-path}")
     private String templatePath;
+
+    private Drive googleDriveService;
+
+    @Autowired
+    public ExcelGeneratorService(Drive googleDriveService) {
+        this.googleDriveService = googleDriveService;
+    }
 
     public void createExcelFromTemplate(Map<String, Object> dealData, String targetPath) throws Exception {
         Resource resource = new ClassPathResource(templatePath);
@@ -92,5 +104,33 @@ public class ExcelGeneratorService {
         } catch (NumberFormatException e) {
             cell.setCellValue(value);
         }
+    }
+
+    public String createDriveFolder(String folderName, String parentFolderId) throws Exception {
+        File folderMetadata = new File();
+        folderMetadata.setName(folderName);
+        folderMetadata.setMimeType("application/vnd.google-apps.folder");
+        folderMetadata.setParents(Collections.singletonList(parentFolderId));
+
+        File createdFolder = googleDriveService.files().create(folderMetadata)
+                .setFields("id")
+                .execute();
+
+        return createdFolder.getId();
+    }
+
+    public String uploadFileToGoogleDrive(String filePath, String fileName, String folderId) throws Exception {
+        File fileMetadata = new File();
+        fileMetadata.setName(fileName);
+        fileMetadata.setParents(Collections.singletonList(folderId));
+
+        java.io.File filePathObj = new java.io.File(filePath);
+        FileContent mediaContent = new FileContent("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filePathObj);
+
+        File uploadedFile = googleDriveService.files().create(fileMetadata, mediaContent)
+                .setFields("id, webViewLink")
+                .execute();
+
+        return uploadedFile.getWebViewLink();
     }
 }
