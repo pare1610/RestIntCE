@@ -2,70 +2,64 @@ package com.proelectricos.restintce.controller;
 
 import com.proelectricos.restintce.service.BitrixApiService;
 import com.proelectricos.restintce.service.ExcelGeneratorService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.proelectricos.restintce.service.GoogleDriveService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Objects;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/bitrix")
+@RequiredArgsConstructor
 public class BitrixController {
 
-    private static final Logger log = LoggerFactory.getLogger(BitrixController.class);
-
-    @Autowired
-    private BitrixApiService bitrixService;
-
-    @Autowired
-    private ExcelGeneratorService excelService;
+    private final BitrixApiService bitrixService;
+    private final ExcelGeneratorService excelService;
+    private final GoogleDriveService driveService;
 
     @Value("${app.excel.export-path}")
     private String exportPath;
 
-    private static final String DRIVE_ROOT_FOLDER_ID = "1uEZu6TnfzYbgJqDMeXeor_zu7QeZfg9w";
+    @Value("${google.drive.root-folder-id}")
+    private String driveRootFolderId;
 
-    // Cambiamos a APPLICATION_JSON_VALUE porque así está en tu captura de Bitrix
     @PostMapping(value = "/generate", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> process(@RequestBody Map<String, Object> payload) {
         try {
-            // Extraemos el ID del JSON: { "id_negocio": "123" }
             if (!payload.containsKey("id_negocio")) {
                 return ResponseEntity.badRequest().body("Error: No se recibió el campo 'id_negocio'");
             }
 
             String dealId = payload.get("id_negocio").toString();
-            log.info(">>>> Iniciando generación de Excel para Deal ID: {}", dealId);
+            log.info(">> Iniciando generación de Excel para Deal ID: {}", dealId);
 
-            // 1. Obtener datos detallados del Deal desde la API de Proeléctricos
+            // 1. Obtener datos del Deal desde Bitrix
             Map<String, Object> dealData = bitrixService.getDealData(dealId);
 
-            // 2. Definir nombre y ruta del archivo
+            // 2. Generar archivo Excel local
             String fileName = "TAB-" + dealId + "-26.xlsx";
             String fullPath = exportPath + fileName;
-
-            // 3. Generar el archivo inyectando los datos en la plantilla
             excelService.createExcelFromTemplate(dealData, fullPath);
-            log.info(">>>> Archivo generado exitosamente en: {}", fullPath);
 
-            // 4. Crear carpeta en Drive: "TAB-{dealId}-26 {dealTitle}"
-            String dealTitle = dealData.getOrDefault("TITLE", "Sin Nombre").toString();
+            // 3. Crear carpeta en Google Drive
+            String dealTitle = Objects.toString(dealData.getOrDefault("TITLE", "Sin Nombre"));
             String folderName = "TAB-" + dealId + "-26 " + dealTitle;
-            String folderId = excelService.createDriveFolder(folderName, DRIVE_ROOT_FOLDER_ID);
-            log.info(">>>> Carpeta creada en Drive: '{}' (ID: {})", folderName, folderId);
+            String folderId = driveService.createFolder(folderName, driveRootFolderId);
 
-            // 5. Subir el archivo a la carpeta recién creada
-            String webViewLink = excelService.uploadFileToGoogleDrive(fullPath, fileName, folderId);
-            log.info(">>>> Archivo subido a Drive: {}", webViewLink);
+            // 4. Subir archivo a la carpeta en Drive
+            String webViewLink = driveService.uploadFile(fullPath, fileName, folderId);
 
+            log.info(">> Proceso completado. Archivo en Drive: {}", webViewLink);
             return ResponseEntity.ok("Archivo generado y subido con éxito: " + webViewLink);
 
         } catch (Exception e) {
-            log.error(">>>> Error en el flujo de generación: ", e);
+            log.error(">> Error en el flujo de generación: ", e);
             return ResponseEntity.internalServerError().body("Error técnico: " + e.getMessage());
         }
     }
