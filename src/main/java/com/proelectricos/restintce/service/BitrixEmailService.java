@@ -33,23 +33,23 @@ public class BitrixEmailService {
 
     /**
      * Envía un correo electrónico desde Bitrix24 con el archivo adjunto
-     * obtenido del campo personalizado del contacto.
+     * obtenido del campo personalizado del deal (negocio).
      *
      * @param fields Mapa con todos los campos del activity (OWNER_ID, OWNER_TYPE_ID,
      *               COMMUNICATIONS, SUBJECT, DESCRIPTION, etc.)
-     * @param contactId  ID del contacto del que se obtiene el archivo adjunto.
-     * @param fileFieldKey Clave del campo personalizado que contiene el archivo (ej. "UF_CRM_1571435743754").
+     * @param dealId       ID del deal del que se obtiene el archivo adjunto.
+     * @param fileFieldKey Clave del campo personalizado que contiene el archivo (ej. "UF_CRM_1234567890").
      * @param attachmentFileName Nombre con el que se adjuntará el archivo (ej. "oferta.pdf").
      */
     public Map<String, Object> sendEmailWithAttachment(
             Map<String, Object> fields,
-            String contactId,
+            String dealId,
             String fileFieldKey,
             String attachmentFileName) {
 
-        // ── Paso 1: Obtener datos del contacto y extraer downloadUrl ────────────
-        log.info("Paso 1: Obteniendo datos del contacto ID={} para extraer campo '{}'", contactId, fileFieldKey);
-        String downloadUrl = getFileDownloadUrl(contactId, fileFieldKey);
+        // ── Paso 1: Obtener datos del deal y extraer downloadUrl ────────────────
+        log.info("Paso 1: Obteniendo datos del deal ID={} para extraer campo '{}'", dealId, fileFieldKey);
+        String downloadUrl = getFileDownloadUrlFromDeal(dealId, fileFieldKey);
 
         // ── Paso 2: Descargar el archivo como bytes ──────────────────────────────
         log.info("Paso 2: Descargando archivo desde: {}", downloadUrl);
@@ -83,29 +83,29 @@ public class BitrixEmailService {
     // ── Métodos privados ──────────────────────────────────────────────────────
 
     /**
-     * Obtiene la URL de descarga del archivo desde el campo personalizado del contacto.
+     * Obtiene la URL de descarga del archivo desde el campo personalizado del deal (negocio).
      */
     @SuppressWarnings("unchecked")
-    private String getFileDownloadUrl(String contactId, String fileFieldKey) {
-        String url = webhookBaseUrl + "crm.contact.get?id=" + contactId;
+    private String getFileDownloadUrlFromDeal(String dealId, String fileFieldKey) {
+        String url = webhookBaseUrl + "crm.deal.get?id=" + dealId;
         try {
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
             if (response == null || response.get("result") == null) {
-                throw new RuntimeException("No se encontraron datos para el contacto ID: " + contactId);
+                throw new RuntimeException("No se encontraron datos para el deal ID: " + dealId);
             }
 
             Map<String, Object> result = (Map<String, Object>) response.get("result");
             Object fieldValue = result.get(fileFieldKey);
 
             if (fieldValue == null) {
-                throw new RuntimeException("El campo '" + fileFieldKey + "' no existe en el contacto ID: " + contactId);
+                throw new RuntimeException("El campo '" + fileFieldKey + "' no existe en el deal ID: " + dealId);
             }
 
             // El campo puede ser un objeto directo o un array de objetos
             Map<String, Object> fileData;
             if (fieldValue instanceof List<?> list) {
                 if (list.isEmpty()) {
-                    throw new RuntimeException("El campo '" + fileFieldKey + "' está vacío en el contacto ID: " + contactId);
+                    throw new RuntimeException("El campo '" + fileFieldKey + "' está vacío en el deal ID: " + dealId);
                 }
                 fileData = (Map<String, Object>) list.get(0);
             } else {
@@ -114,14 +114,14 @@ public class BitrixEmailService {
 
             String downloadUrl = Objects.toString(fileData.get("downloadUrl"), "");
             if (downloadUrl.isBlank()) {
-                throw new RuntimeException("No se encontró 'downloadUrl' en el campo '" + fileFieldKey + "'");
+                throw new RuntimeException("No se encontró 'downloadUrl' en el campo '" + fileFieldKey + "' del deal ID: " + dealId);
             }
 
             return downloadUrl;
 
         } catch (HttpClientErrorException e) {
-            log.error("Error HTTP {} al obtener contacto {}: {}", e.getStatusCode(), contactId, e.getResponseBodyAsString());
-            throw new RuntimeException("Error al obtener contacto de Bitrix24 (HTTP " + e.getStatusCode() + "): " + e.getResponseBodyAsString());
+            log.error("Error HTTP {} al obtener deal {}: {}", e.getStatusCode(), dealId, e.getResponseBodyAsString());
+            throw new RuntimeException("Error al obtener deal de Bitrix24 (HTTP " + e.getStatusCode() + "): " + e.getResponseBodyAsString());
         }
     }
 

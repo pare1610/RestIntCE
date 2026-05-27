@@ -115,17 +115,17 @@ public class BitrixController {
 
     /**
      * Envía un correo electrónico desde Bitrix24 adjuntando el archivo
-     * almacenado en el campo personalizado del contacto.
+     * almacenado en el campo personalizado del deal (negocio).
      *
      * Parámetros adicionales esperados en el body JSON (además de "fields"):
-     *   - contact_id      : ID del contacto del que se obtiene el archivo.
-     *   - file_field_key  : Clave del campo personalizado (ej. "UF_CRM_1571435743754").
+     *   - deal_id         : ID del deal del que se obtiene el archivo adjunto.
+     *   - file_field_key  : Clave del campo personalizado (ej. "UF_CRM_1234567890").
      *   - attachment_name : Nombre del archivo adjunto (ej. "oferta.pdf"). Opcional, default "adjunto.pdf".
      *
      * Ejemplo de body:
      * {
-     *   "contact_id": "125",
-     *   "file_field_key": "UF_CRM_1571435743754",
+     *   "deal_id": "70584",
+     *   "file_field_key": "UF_CRM_1234567890",
      *   "attachment_name": "TAB-70584-26.pdf",
      *   "fields": { ... }
      * }
@@ -133,12 +133,12 @@ public class BitrixController {
     @PostMapping(value = "/send-email", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> sendEmailWithAttachment(@RequestBody Map<String, Object> payload) {
         try {
-            String contactId = Objects.toString(payload.get("contact_id"), "");
+            String dealId = Objects.toString(payload.get("deal_id"), "");
             String fileFieldKey = Objects.toString(payload.get("file_field_key"), "");
             String attachmentName = Objects.toString(payload.getOrDefault("attachment_name", "adjunto.pdf"), "adjunto.pdf");
 
-            if (contactId.isBlank()) {
-                return ResponseEntity.badRequest().body("Error: Se requiere el campo 'contact_id'");
+            if (dealId.isBlank()) {
+                return ResponseEntity.badRequest().body("Error: Se requiere el campo 'deal_id'");
             }
             if (fileFieldKey.isBlank()) {
                 return ResponseEntity.badRequest().body("Error: Se requiere el campo 'file_field_key'");
@@ -150,8 +150,8 @@ public class BitrixController {
                 return ResponseEntity.badRequest().body("Error: Se requiere el objeto 'fields'");
             }
 
-            log.info(">> Enviando correo con adjunto. Contacto={}, Campo={}, Archivo={}", contactId, fileFieldKey, attachmentName);
-            Map<String, Object> result = emailService.sendEmailWithAttachment(fields, contactId, fileFieldKey, attachmentName);
+            log.info(">> Enviando correo con adjunto. Deal={}, Campo={}, Archivo={}", dealId, fileFieldKey, attachmentName);
+            Map<String, Object> result = emailService.sendEmailWithAttachment(fields, dealId, fileFieldKey, attachmentName);
             return ResponseEntity.ok("Correo enviado correctamente. ID de actividad: " + result.get("result"));
 
         } catch (Exception e) {
